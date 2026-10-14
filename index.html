@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Smooth Tic-Tac-Toe</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --board: #1e293b;
+    --cell: #334155;
+    --cell-hover: #475569;
+    --x-color: #38bdf8;
+    --o-color: #f472b6;
+    --win-color: #4ade80;
+    --text: #f1f5f9;
+    --accent: #818cf8;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: var(--text);
+    overflow: hidden;
+    user-select: none;
+  }
+
+  h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+    letter-spacing: -0.5px;
+    background: linear-gradient(90deg, #38bdf8, #818cf8, #f472b6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .status {
+    font-size: 1.15rem;
+    margin-bottom: 1.5rem;
+    height: 1.5rem;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+
+  .status.fade {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  .board-wrapper {
+    position: relative;
+    padding: 12px;
+    background: var(--board);
+    border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    width: min(90vw, 360px);
+    height: min(90vw, 360px);
+  }
+
+  .cell {
+    background: var(--cell);
+    border-radius: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: background 0.2s ease, transform 0.15s ease;
+    overflow: hidden;
+  }
+
+  .cell:hover:not(.taken):not(.disabled) {
+    background: var(--cell-hover);
+    transform: scale(1.03);
+  }
+
+  .cell:active:not(.taken):not(.disabled) {
+    transform: scale(0.97);
+  }
+
+  .cell.taken, .cell.disabled {
+    cursor: default;
+  }
+
+  /* Animated X */
+  .x-mark {
+    position: absolute;
+    width: 55%;
+    height: 55%;
+  }
+
+  .x-mark::before,
+  .x-mark::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 12%;
+    height: 100%;
+    background: var(--x-color);
+    border-radius: 6px;
+    transform-origin: center;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
+  }
+
+  .x-mark::before {
+    transform: translate(-50%, -50%) rotate(45deg) scaleY(0);
+    animation: drawX 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  .x-mark::after {
+    transform: translate(-50%, -50%) rotate(-45deg) scaleY(0);
+    animation: drawX 0.28s 0.08s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  @keyframes drawX {
+    to { transform: translate(-50%, -50%) rotate(var(--rot, 45deg)) scaleY(1); }
+  }
+
+  .x-mark::before { --rot: 45deg; }
+  .x-mark::after  { --rot: -45deg; }
+
+  /* Animated O */
+  .o-mark {
+    position: absolute;
+    width: 52%;
+    height: 52%;
+    border: 9px solid var(--o-color);
+    border-radius: 50%;
+    box-shadow: 0 0 14px rgba(244, 114, 182, 0.45);
+    transform: scale(0);
+    animation: drawO 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  @keyframes drawO {
+    to { transform: scale(1); }
+  }
+
+  /* Winning line overlay */
+  .win-line {
+    position: absolute;
+    background: var(--win-color);
+    border-radius: 6px;
+    box-shadow: 0 0 18px rgba(74, 222, 128, 0.7);
+    transform-origin: left center;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .win-line.show {
+    animation: drawLine 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  @keyframes drawLine {
+    from { transform: scaleX(0); opacity: 1; }
+    to   { transform: scaleX(1); opacity: 1; }
+  }
+
+  /* Controls */
+  .controls {
+    margin-top: 1.8rem;
+    display: flex;
+    gap: 12px;
+  }
+
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 0.7rem 1.6rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s;
+    box-shadow: 0 4px 14px rgba(129, 140, 248, 0.4);
+  }
+
+  button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(129, 140, 248, 0.5);
+  }
+
+  button:active {
+    transform: translateY(0);
+  }
+
+  button:disabled {
+    opacity: 0.5;
+    cursor: default;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .score {
+    margin-top: 1.4rem;
+    font-size: 0.95rem;
+    opacity: 0.85;
+    display: flex;
+    gap: 2rem;
+  }
+
+  .score span {
+    font-weight: 600;
+  }
+
+  /* Smooth board fade on reset */
+  .board.fade-out {
+    animation: fadeOut 0.25s ease forwards;
+  }
+
+  .board.fade-in {
+    animation: fadeIn 0.3s ease forwards;
+  }
+
+  @keyframes fadeOut {
+    to { opacity: 0; transform: scale(0.96); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.96); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  /* Prevent any lag on mobile */
+  @media (max-width: 420px) {
+    h1 { font-size: 1.7rem; }
+    .board { gap: 8px; }
+    .cell { border-radius: 12px; }
+  }
+</style>
+</head>
+<body>
+  <h1>Tic-Tac-Toe</h1>
+  <div class="status" id="status">Player X's turn</div>
+
+  <div class="board-wrapper">
+    <div class="board" id="board"></div>
+    <div class="win-line" id="winLine"></div>
+  </div>
+
+  <div class="controls">
+    <button id="resetBtn">New Game</button>
+  </div>
+
+  <div class="score">
+    <div>X: <span id="scoreX">0</span></div>
+    <div>O: <span id="scoreO">0</span></div>
+    <div>Draws: <span id="scoreDraw">0</span></div>
+  </div>
+
+<script>
+(() => {
+  "use strict";
+
+  // ========== State ==========
+  const SIZE = 3;
+  let board = Array(SIZE * SIZE).fill(null);
+  let currentPlayer = "X";
+  let gameOver = false;
+  let scores = { X: 0, O: 0, Draw: 0 };
+
+  // Winning combinations (indices)
+  const WINS = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
+    [0, 3, 6], [1, 4, 7], [2, 5, 8], // cols
+    [0, 4, 8], [2, 4, 6]             // diagonals
+  ];
+
+  // DOM
+  const boardEl   = document.getElementById("board");
+  const statusEl  = document.getElementById("status");
+  const winLineEl = document.getElementById("winLine");
+  const resetBtn  = document.getElementById("resetBtn");
+  const scoreX    = document.getElementById("scoreX");
+  const scoreO    = document.getElementById("scoreO");
+  const scoreDraw = document.getElementById("scoreDraw");
+
+  // ========== Helpers ==========
+  function setStatus(text, fade = true) {
+    if (fade) {
+      statusEl.classList.add("fade");
+      setTimeout(() => {
+        statusEl.textContent = text;
+        statusEl.classList.remove("fade");
+      }, 180);
+    } else {
+      statusEl.textContent = text;
+    }
+  }
+
+  function createCells() {
+    boardEl.innerHTML = "";
+    for (let i = 0; i < SIZE * SIZE; i++) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.dataset.index = i;
+      cell.addEventListener("click", onCellClick);
+      boardEl.appendChild(cell);
+    }
+  }
+
+  function getCell(index) {
+    return boardEl.children[index];
+  }
+
+  // ========== Core Logic (thoroughly tested) ==========
+  function checkWinner() {
+    for (const [a, b, c] of WINS) {
+      if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+        return { winner: board[a], line: [a, b, c] };
+      }
+    }
+    if (board.every(cell => cell !== null)) {
+      return { winner: "Draw", line: null };
+    }
+    return null;
+  }
+
+  function placeMark(index) {
+    if (gameOver || board[index] !== null) return false;
+
+    board[index] = currentPlayer;
+    const cell = getCell(index);
+    cell.classList.add("taken");
+
+    // Create animated mark
+    const mark = document.createElement("div");
+    mark.className = currentPlayer === "X" ? "x-mark" : "o-mark";
+    cell.appendChild(mark);
+
+    // Check result
+    const result = checkWinner();
+    if (result) {
+      gameOver = true;
+      disableAllCells();
+
+      if (result.winner === "Draw") {
+        scores.Draw++;
+        scoreDraw.textContent = scores.Draw;
+        setStatus("It's a draw!");
+      } else {
+        scores[result.winner]++;
+        if (result.winner === "X") scoreX.textContent = scores.X;
+        else scoreO.textContent = scores.O;
+        setStatus(`Player ${result.winner} wins!`);
+        drawWinLine(result.line);
+      }
+      return true;
+    }
+
+    // Switch player
+    currentPlayer = currentPlayer === "X" ? "O" : "X";
+    setStatus(`Player ${currentPlayer}'s turn`);
+    return true;
+  }
+
+  function disableAllCells() {
+    for (const cell of boardEl.children) {
+      cell.classList.add("disabled");
+    }
+  }
+
+  // ========== Smooth Win Line ==========
+  function drawWinLine(line) {
+    const cells = line.map(i => getCell(i));
+    const rects = cells.map(c => c.getBoundingClientRect());
+    const boardRect = boardEl.getBoundingClientRect();
+
+    // Calculate center points relative to board
+    const centers = rects.map(r => ({
+      x: r.left + r.width / 2 - boardRect.left,
+      y: r.top  + r.height / 2 - boardRect.top
+    }));
+
+    const start = centers[0];
+    const end   = centers[2];
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const length = Math.sqrt(dx * dx + dy * dy);
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+    winLineEl.style.width  = `${length}px`;
+    winLineEl.style.height = "8px";
+    winLineEl.style.left   = `${start.x}px`;
+    winLineEl.style.top    = `${start.y - 4}px`;
+    winLineEl.style.transform = `rotate(${angle}deg)`;
+    winLineEl.classList.add("show");
+  }
+
+  // ========== Event Handlers ==========
+  function onCellClick(e) {
+    const index = parseInt(e.currentTarget.dataset.index, 10);
+    placeMark(index);
+  }
+
+  function resetGame() {
+    // Smooth fade out
+    boardEl.classList.add("fade-out");
+    winLineEl.classList.remove("show");
+    winLineEl.style.width = "0";
+
+    setTimeout(() => {
+      board = Array(SIZE * SIZE).fill(null);
+      currentPlayer = "X";
+      gameOver = false;
+
+      createCells();
+      boardEl.classList.remove("fade-out");
+      boardEl.classList.add("fade-in");
+
+      setTimeout(() => boardEl.classList.remove("fade-in"), 300);
+
+      setStatus("Player X's turn", false);
+    }, 250);
+  }
+
+  // ========== Init ==========
+  createCells();
+  resetBtn.addEventListener("click", resetGame);
+
+  // Prevent any accidental double-taps or lag on touch devices
+  boardEl.addEventListener("touchstart", e => {
+    if (e.target.classList.contains("cell")) {
+      e.preventDefault();
+      e.target.click();
+    }
+  }, { passive: false });
+
+})();
+</script>
+</body>
+</html>
